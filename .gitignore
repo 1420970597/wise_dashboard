@@ -1,0 +1,50 @@
+# Binaries
+dashboard/dashboard
+agent/nezha-agent
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test binary
+*.test
+
+# Output of the go coverage tool
+*.out
+
+# Data directories
+dashboard/data/
+dashboard/recordings/
+
+# Logs
+*.log
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node modules
+node_modules/
+dist/
+
+# Config files with secrets
+dashboard/data/config.yaml
+agent/config.yml
+*.key
+*.pem
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+
+# Temporary files
+tmp/
+temp/
