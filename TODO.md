@@ -1,0 +1,1 @@
+1. 升级agent的终端，在dashboard端一对一映射服务器ssh端口，用户通过各个ssh工具连接到dashboard指定ip进而连接agent服务器，在连接过程中所有的指令仍被记录和管控。
