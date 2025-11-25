@@ -11,11 +11,19 @@ wise_dashboard/
 │   ├── model/         # 数据模型
 │   ├── service/       # 业务逻辑
 │   └── proto/         # gRPC 协议定义
-└── agent/             # Agent 客户端
-    ├── cmd/           # 命令行入口
-    ├── model/         # 数据模型
-    ├── pkg/           # 核心功能包
-    └── service/       # 业务逻辑
+├── agent/             # Agent 客户端
+│   ├── cmd/           # 命令行入口
+│   ├── model/         # 数据模型
+│   ├── pkg/           # 核心功能包
+│   └── service/       # 业务逻辑
+├── admin-frontend/    # 管理员前端 (Vite + React)
+│   ├── src/           # 源代码
+│   ├── public/        # 静态资源
+│   └── dist/          # 编译输出
+└── user-frontend/     # 用户仪表盘 (Next.js)
+    ├── app/           # Next.js 应用目录
+    ├── components/    # React 组件
+    └── lib/           # 工具库
 ```
 
 ## 核心功能
@@ -67,6 +75,58 @@ CGO_ENABLED=1 go build -o dashboard ./cmd/dashboard
 
 # 运行
 ./dashboard -c config.yaml -db sqlite.db
+```
+
+### 前端部署
+
+#### 管理员前端 (admin-frontend)
+
+```bash
+cd admin-frontend
+
+# 安装依赖
+npm install
+
+# 开发模式
+npm run dev
+
+# 生成 API 类型
+npx swagger-typescript-api -p http://localhost:8008/swagger/doc.json -o ./src/types -n api.ts --no-client --union-enums
+
+# 编译生产版本
+npm run build
+
+# 编译输出在 dist/ 目录
+```
+
+#### 用户仪表盘 (user-frontend)
+
+```bash
+cd user-frontend
+
+# 安装依赖（推荐使用 bun，也可使用 npm）
+bun install
+# 或
+npm install
+
+# 配置环境变量（参考 .env.example）
+cp .env.example .env.local
+# 编辑 .env.local 配置 Dashboard API 地址等
+
+# 开发模式
+bun dev
+# 或
+npm run dev
+
+# 编译生产版本
+bun run build
+# 或
+npm run build
+
+# 支持多种部署方式：
+# - Vercel: 推送到 GitHub 后在 Vercel 导入项目
+# - Cloudflare: 使用 @cloudflare/next-on-pages 适配器
+# - Docker: 使用项目提供的 Dockerfile
 ```
 
 ### Agent 部署
@@ -263,7 +323,8 @@ Authorization: Bearer <token>
 ## 技术栈
 
 - **后端**: Go 1.24+
-- **前端**: Vue.js 3
+- **管理员前端**: React + Vite + TypeScript + Tailwind CSS
+- **用户前端**: Next.js 15 + React + TypeScript + shadcn/ui
 - **数据库**: SQLite / MySQL / PostgreSQL
 - **通信**: gRPC + HTTP
 - **终端**: PTY + WebSocket
@@ -274,15 +335,54 @@ Authorization: Bearer <token>
 ### 环境要求
 
 - Go 1.24+
-- Node.js 18+
+- Node.js 18+ (或 Bun)
 - SQLite3 / MySQL / PostgreSQL
 
 ### 编译前端
 
+#### 管理员前端
+
 ```bash
-cd dashboard/cmd/dashboard/user-dist
+cd admin-frontend
+
+# 安装依赖
 npm install
+
+# 开发模式（热重载）
+npm run dev
+
+# 生成 TypeScript API 类型定义
+npx swagger-typescript-api -p http://localhost:8008/swagger/doc.json -o ./src/types -n api.ts --no-client --union-enums
+
+# 编译生产版本
 npm run build
+
+# 预览生产构建
+npm run preview
+```
+
+#### 用户仪表盘
+
+```bash
+cd user-frontend
+
+# 安装依赖
+bun install
+# 或
+npm install
+
+# 配置环境变量
+cp .env.example .env.local
+# 编辑 .env.local 设置 API 地址
+
+# 开发模式
+bun dev
+
+# 编译生产版本
+bun run build
+
+# 启动生产服务器
+bun start
 ```
 
 ### 生成 Proto 文件
