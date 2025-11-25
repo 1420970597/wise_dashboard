@@ -49,6 +49,10 @@ func ServeWeb(frontendDist fs.FS) http.Handler {
 }
 
 func routers(r *gin.Engine, frontendDist fs.FS) {
+	// Agent binary download (no authentication required) - must be before NoRoute
+	r.GET("/nezha-agent", commonHandler(downloadAgentBinary))
+	r.GET("/install.sh", commonHandler(downloadInstallScript))
+
 	authMiddleware, err := jwt.New(initParams())
 	if err != nil {
 		log.Fatal("JWT Error:" + err.Error())

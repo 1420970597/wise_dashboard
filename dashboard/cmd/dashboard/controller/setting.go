@@ -2,6 +2,8 @@ package controller
 
 import (
 	"errors"
+	"fmt"
+	"log"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -47,6 +49,12 @@ func listConfig(c *gin.Context) (*model.SettingResponse, error) {
 		if authorized {
 			configDashboard.AgentTLS = singleton.Conf.AgentTLS
 			configDashboard.InstallHost = singleton.Conf.InstallHost
+
+			// 为已登录用户生成安装命令
+			if singleton.Conf.InstallHost != "" {
+				user := u.(*model.User)
+				conf.InstallCommand = generateInstallCommand(singleton.Conf.InstallHost, singleton.Conf.AgentTLS, user.AgentSecret)
+			}
 		}
 		conf = model.SettingResponse{
 			Config: model.Setting{
@@ -54,6 +62,20 @@ func listConfig(c *gin.Context) (*model.SettingResponse, error) {
 				ConfigDashboard: configDashboard,
 				Oauth2Providers: config.Oauth2Providers,
 			},
+			Version:           singleton.Version,
+			FrontendTemplates: singleton.FrontendTemplates,
+			InstallCommand:    conf.InstallCommand,
+		}
+	} else {
+		// 为管理员生成安装命令
+		log.Printf("NEZHA>> Admin user detected, InstallHost: %s", singleton.Conf.InstallHost)
+		if singleton.Conf.InstallHost != "" {
+			user := u.(*model.User)
+			log.Printf("NEZHA>> User ID: %d, AgentSecret: %s", user.ID, user.AgentSecret)
+			conf.InstallCommand = generateInstallCommand(singleton.Conf.InstallHost, singleton.Conf.AgentTLS, user.AgentSecret)
+			log.Printf("NEZHA>> Generated InstallCommand: %s", conf.InstallCommand)
+		} else {
+			log.Printf("NEZHA>> InstallHost is empty!")
 		}
 	}
 
@@ -113,4 +135,31 @@ func updateConfig(c *gin.Context) (any, error) {
 
 	singleton.OnUpdateLang(singleton.Conf.Language)
 	return nil, nil
+}
+
+// generateInstallCommand 生成 agent 安装命令
+func generateInstallCommand(installHost string, agentTLS bool, userSecret string) string {
+	// 构建下载 URL
+	protocol := "http"
+	if agentTLS {
+		protocol = "https"
+	}
+	installScriptURL := fmt.Sprintf("%s://%s/install.sh", protocol, installHost)
+
+	// TLS 参数
+	tlsValue := "false"
+	if agentTLS {
+		tlsValue = "true"
+	}
+
+	// 构建完整的安装命令
+	installCmd := fmt.Sprintf(
+		"curl -L %s -o nezha.sh && chmod +x nezha.sh && sudo NZ_SERVER=%s NZ_CLIENT_SECRET=%s NZ_TLS=%s ./nezha.sh",
+		installScriptURL,
+		installHost,
+		userSecret,
+		tlsValue,
+	)
+
+	return installCmd
 }

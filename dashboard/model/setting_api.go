@@ -43,4 +43,5 @@ type SettingResponse struct {
 
 	Version           string             `json:"version,omitempty"`
 	FrontendTemplates []FrontendTemplate `json:"frontend_templates,omitempty"`
+	InstallCommand    string             `json:"install_command,omitempty"` // Agent安装命令
 }

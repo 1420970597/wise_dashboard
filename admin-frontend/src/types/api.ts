@@ -702,6 +702,7 @@ export interface ModelSettingForm {
 export interface ModelSettingResponse {
     config: ModelSetting
     frontend_templates: ModelFrontendTemplate[]
+    install_command?: string
     version: string
 }
 

@@ -42,7 +42,7 @@ export const InstallCommandsMenu = forwardRef<HTMLButtonElement, InstallCommands
                     if (!profile) throw new Error("Profile is not found.")
                     if (!settings?.config) throw new Error("Settings is not found.")
                     await copyToClipboard(
-                        generateCommand(type, settings!.config, profile, uuid) || "",
+                        generateCommand(type, settings!.config, profile, uuid, settings?.install_command) || "",
                     )
                 } catch (e: Error | any) {
                     console.error(e)
@@ -132,11 +132,26 @@ const generateCommand = (
     { install_host, tls }: ModelSetting,
     { agent_secret }: ModelProfile,
     uuid?: string,
+    installCommand?: string,
 ) => {
     if (!install_host) throw new Error(i18next.t("Results.InstallHostRequired"))
 
     if (!agent_secret) throw new Error(i18next.t("Results.AgentSecretRequired"))
 
+    // 对于 Linux/macOS，如果后端提供了 install_command，则优先使用
+    if ((type === OSTypes.Linux || type === OSTypes.macOS) && installCommand) {
+        // 如果有 UUID，需要在命令中添加 NZ_UUID 参数
+        if (uuid) {
+            // 在 sudo 前插入 NZ_UUID 环境变量
+            return installCommand.replace(
+                /sudo (NZ_[A-Z_]+=\S+\s*)+/,
+                (match) => `sudo NZ_UUID=${uuid} ${match.slice(5)}`,
+            )
+        }
+        return installCommand
+    }
+
+    // 回退到原有的生成逻辑（用于 Windows 或没有 install_command 的情况）
     const envParts = [
         `NZ_SERVER=${install_host}`,
         `NZ_TLS=${tls || false}`,

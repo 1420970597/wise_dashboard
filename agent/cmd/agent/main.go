@@ -164,12 +164,37 @@ func preRun(configPath string) error {
 
 	// 初始化审计配置
 	if agentConfig.AuditEnabled {
+		// 验证必要的审计配置
+		if agentConfig.AuditDashboardURL == "" {
+			return fmt.Errorf("审计功能已启用(audit_enabled: true)，但缺少必要配置: audit_dashboard_url")
+		}
+
+		if agentConfig.AuditToken == "" {
+			println("⚠️  警告: audit_token 未配置，Dashboard API 调用可能失败")
+			println("   建议在 config.yml 中设置 audit_token")
+		}
+
 		audit.SetConfig(&audit.Config{
 			Enabled:      true,
 			DashboardURL: agentConfig.AuditDashboardURL,
 			Token:        agentConfig.AuditToken,
 		})
-		println("终端审计已启用")
+
+		println("✓ 终端审计已启用")
+		println("  Dashboard URL: " + agentConfig.AuditDashboardURL)
+		if agentConfig.AuditToken != "" {
+			tokenPreview := agentConfig.AuditToken
+			if len(tokenPreview) > 8 {
+				tokenPreview = tokenPreview[:8] + "..."
+			}
+			println("  认证 Token: " + tokenPreview + " (已配置)")
+		}
+	} else {
+		println("ℹ️  终端审计未启用")
+		println("   如需启用终端审计功能，请在 config.yml 中配置:")
+		println("   audit_enabled: true")
+		println("   audit_dashboard_url: \"http://your-dashboard:8008\"")
+		println("   audit_token: \"your-audit-token\"")
 	}
 
 	return nil
