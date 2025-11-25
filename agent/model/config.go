@@ -103,6 +103,28 @@ func (c *AgentConfig) Save() error {
 		return err
 	}
 
+	// 检查是否是首次创建配置文件
+	_, err = os.Stat(c.filePath)
+	isFirstTime := os.IsNotExist(err)
+
+	// 如果是首次创建，添加审计配置的完整示例
+	if isFirstTime {
+		// 在基础配置后添加审计配置说明
+		auditTemplate := `
+# ==================== 终端审计配置 ====================
+# 终端审计功能会自动启用，Dashboard 地址会从 server 配置自动推断
+# 如果需要自定义配置，可以修改以下项：
+#
+#   audit_enabled: false              # 设为 false 可禁用审计
+#   audit_dashboard_url: "http://..."  # 自定义 Dashboard 地址（可选）
+#   audit_token: "your-token"          # 认证 Token（建议配置）
+#
+# 默认行为：自动从 server 地址推断 Dashboard 地址（将端口改为 8008）
+# ========================================================
+`
+		data = append(data, []byte(auditTemplate)...)
+	}
+
 	return os.WriteFile(c.filePath, data, 0600)
 }
 
