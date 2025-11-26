@@ -1,0 +1,17 @@
+[Unit]
+Description=Wise Dashboard Service
+Documentation=https://github.com/nezhahq/nezha
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/wise-dashboard
+ExecStart=/opt/wise-dashboard/dashboard -c /opt/wise-dashboard/data/config.yaml -db /opt/wise-dashboard/data/sqlite.db
+Restart=on-failure
+RestartSec=5s
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
