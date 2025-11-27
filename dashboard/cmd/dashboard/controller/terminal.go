@@ -1,10 +1,10 @@
 package controller
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/goccy/go-json"
 	"github.com/gorilla/websocket"
 	"github.com/hashicorp/go-uuid"
 
@@ -14,6 +14,35 @@ import (
 	"github.com/nezhahq/nezha/service/rpc"
 	"github.com/nezhahq/nezha/service/singleton"
 )
+
+// shouldEnableRecording 判断是否应该为指定服务器启用终端录制
+func shouldEnableRecording(serverID uint64) bool {
+	// 检查全局是否启用录制
+	if !singleton.Conf.TerminalRecordingEnabled {
+		return false
+	}
+
+	// 如果没有配置服务器白名单，默认对所有服务器启用
+	if singleton.Conf.TerminalRecordingServers == "" {
+		return true
+	}
+
+	// 解析服务器ID白名单
+	var serverIDs []uint64
+	if err := json.Unmarshal([]byte(singleton.Conf.TerminalRecordingServers), &serverIDs); err != nil {
+		// 解析失败，默认对所有服务器启用
+		return true
+	}
+
+	// 检查当前服务器是否在白名单中
+	for _, id := range serverIDs {
+		if id == serverID {
+			return true
+		}
+	}
+
+	return false
+}
 
 // Create web ssh terminal
 // @Summary Create web ssh terminal
@@ -57,7 +86,7 @@ func createTerminal(c *gin.Context) (*model.CreateTerminalResponse, error) {
 		ServerName:       server.Name,
 		StreamID:         streamId,
 		StartedAt:        time.Now(),
-		RecordingEnabled: false, // TODO: Get from config
+		RecordingEnabled: shouldEnableRecording(createTerminalReq.ServerID),
 	}
 	if err := singleton.DB.Create(session).Error; err != nil {
 		return nil, err

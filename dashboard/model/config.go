@@ -47,6 +47,13 @@ type ConfigDashboard struct {
 
 	DNSServers string `koanf:"dns_servers" json:"dns_servers,omitempty"`
 	AutoSSHHost string `koanf:"autossh_host" json:"autossh_host,omitempty"` // AutoSSH 服务器地址，格式：ip:port
+
+	// 终端审计配置
+	TerminalRecordingEnabled  bool   `koanf:"terminal_recording_enabled" json:"terminal_recording_enabled,omitempty"`   // 全局是否启用终端���制
+	TerminalRecordingServers  string `koanf:"terminal_recording_servers" json:"terminal_recording_servers,omitempty"`   // 启用录制的服务器ID列表，JSON数组格式，如 "[1,2,3]"，空表示所有服务器
+	TerminalRetentionDays     int    `koanf:"terminal_retention_days" json:"terminal_retention_days,omitempty"`         // 审计数据保留天数，0表示永久保留，默认90天
+	TerminalMaxRecordingSize  int64  `koanf:"terminal_max_recording_size" json:"terminal_max_recording_size,omitempty"` // 单个录制文件最大大小（MB），默认100MB
+	TerminalCompressionEnabled bool   `koanf:"terminal_compression_enabled" json:"terminal_compression_enabled,omitempty"` // 是否启用压缩，默认启用
 }
 
 type Config struct {

@@ -9,12 +9,14 @@ import (
 
 // CleanupTerminalAuditData cleans up old terminal audit data based on retention policy
 func CleanupTerminalAuditData() {
-	// TODO: Get retention days from config
-	// For now, default to 90 days
-	retentionDays := 90
+	// 从配置读取保留天数，默认90天
+	retentionDays := Conf.TerminalRetentionDays
+	if retentionDays == 0 {
+		retentionDays = 90 // 默认值
+	}
 
-	if retentionDays <= 0 {
-		// 0 means keep forever
+	if retentionDays < 0 {
+		// 负数表示永久保留，不清理
 		return
 	}
 
