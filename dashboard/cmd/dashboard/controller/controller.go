@@ -51,7 +51,9 @@ func ServeWeb(frontendDist fs.FS) http.Handler {
 func routers(r *gin.Engine, frontendDist fs.FS) {
 	// Agent binary download (no authentication required) - must be before NoRoute
 	r.GET("/nezha-agent", commonHandler(downloadAgentBinary))
+	r.HEAD("/nezha-agent", commonHandler(downloadAgentBinary))
 	r.GET("/install.sh", commonHandler(downloadInstallScript))
+	r.HEAD("/install.sh", commonHandler(downloadInstallScript))
 
 	authMiddleware, err := jwt.New(initParams())
 	if err != nil {
@@ -105,6 +107,7 @@ func routers(r *gin.Engine, frontendDist fs.FS) {
 		downloadRecording(c)
 	})
 	auth.GET("/terminal/recording-url/:session_id", adminHandler(getRecordingURL))
+	auth.GET("/terminal/recording-stream/:session_id", adminHandler(streamRecording))
 	auth.GET("/terminal/sessions", adminHandler(listTerminalSessions))
 	auth.GET("/terminal/commands", adminHandler(listTerminalCommands))
 	auth.GET("/terminal/blacklist", adminHandler(listTerminalBlacklist))
@@ -366,6 +369,7 @@ func fallbackToFrontend(frontendDist fs.FS) func(*gin.Context) {
 		regexp.MustCompile(`^/dashboard/alert-rule$`),
 		regexp.MustCompile(`^/dashboard/ddns$`),
 		regexp.MustCompile(`^/dashboard/nat$`),
+		regexp.MustCompile(`^/dashboard/autossh$`),
 		regexp.MustCompile(`^/dashboard/server-group$`),
 		regexp.MustCompile(`^/dashboard/notification-group$`),
 		regexp.MustCompile(`^/dashboard/profile$`),

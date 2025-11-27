@@ -29,6 +29,7 @@ import SettingsPage from "./routes/settings"
 import UserPage from "./routes/user"
 import WAFPage from "./routes/waf"
 import TerminalAuditPage from "./routes/terminal-audit"
+import AutoSSHPage from "./routes/autossh"
 
 const router = createBrowserRouter([
     {
@@ -89,6 +90,14 @@ const router = createBrowserRouter([
             {
                 path: "/dashboard/nat",
                 element: <NATPage />,
+            },
+            {
+                path: "/dashboard/autossh",
+                element: (
+                    <ServerProvider withServer>
+                        <AutoSSHPage />
+                    </ServerProvider>
+                ),
             },
             {
                 path: "/dashboard/server-group",

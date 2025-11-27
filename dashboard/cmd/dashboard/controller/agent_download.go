@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"errors"
 	"os"
 	"path/filepath"
 
@@ -21,15 +20,11 @@ func downloadAgentBinary(c *gin.Context) (any, error) {
 
 	// 检查文件是否存在
 	if _, err := os.Stat(agentPath); os.IsNotExist(err) {
-		return nil, errors.New("agent binary not found")
+		c.JSON(404, gin.H{"error": "agent binary not found"})
+		return nil, errNoop
 	}
 
-	// 设置响应头
-	c.Header("Content-Type", "application/octet-stream")
-	c.Header("Content-Disposition", "attachment; filename=nezha-agent")
-	c.Status(200)
-
-	// 发送文件
+	// 发送文件（会自动设置 200 状态码和正确的 Content-Type）
 	c.File(agentPath)
 
 	// 返回 errNoop 表示已处理响应
@@ -49,15 +44,11 @@ func downloadInstallScript(c *gin.Context) (any, error) {
 
 	// 检查文件是否存在
 	if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
-		return nil, errors.New("install script not found")
+		c.JSON(404, gin.H{"error": "install script not found"})
+		return nil, errNoop
 	}
 
-	// 设置响应头
-	c.Header("Content-Type", "text/plain; charset=utf-8")
-	c.Header("Content-Disposition", "attachment; filename=install.sh")
-	c.Status(200)
-
-	// 发送文件
+	// 发送文件（会自动设置 200 状态码和正确的 Content-Type）
 	c.File(scriptPath)
 
 	// 返回 errNoop 表示已处理响应
