@@ -132,19 +132,25 @@ install() {
     NZ_AGENT_URL="${PROTOCOL}://${NZ_SERVER}/nezha-agent"
 
     # 下载 agent
-    info "Downloading agent from $NZ_AGENT_URL"
+    info "Downloading agent from $NZ_AGENT_URL (this may take a while...)"
 
+    download_success=0
     if command -v wget >/dev/null 2>&1; then
-        _cmd="wget --timeout=60 -O /tmp/nezha-agent \"$NZ_AGENT_URL\" >/dev/null 2>&1"
+        if wget --timeout=180 --tries=3 --show-progress -O /tmp/nezha-agent "$NZ_AGENT_URL" 2>&1; then
+            download_success=1
+        fi
     elif command -v curl >/dev/null 2>&1; then
-        _cmd="curl --max-time 60 -fsSL \"$NZ_AGENT_URL\" -o /tmp/nezha-agent >/dev/null 2>&1"
+        if curl --max-time 180 --retry 3 --retry-delay 2 -fSL "$NZ_AGENT_URL" -o /tmp/nezha-agent 2>&1; then
+            download_success=1
+        fi
     else
         err "Neither wget nor curl is available"
         exit 1
     fi
 
-    if ! eval "$_cmd"; then
+    if [ $download_success -eq 0 ]; then
         err "Download nezha-agent failed, check your network connectivity"
+        err "You can try to download manually: curl -L $NZ_AGENT_URL -o /tmp/nezha-agent"
         exit 1
     fi
 
