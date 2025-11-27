@@ -14,6 +14,9 @@ agent/nezha-agent
 
 # Data directories
 dashboard/data/
+!dashboard/data/agents/
+dashboard/data/agents/*
+!dashboard/data/agents/install.sh
 dashboard/recordings/
 
 # Logs

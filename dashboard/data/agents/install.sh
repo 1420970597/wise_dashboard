@@ -2,6 +2,7 @@
 
 NZ_BASE_PATH="/opt/nezha"
 NZ_AGENT_PATH="${NZ_BASE_PATH}/agent"
+NZ_CONFIG_PATH="$NZ_AGENT_PATH/config.yml"
 
 red='\033[0;31m'
 green='\033[0;32m'
@@ -106,32 +107,30 @@ env_check() {
 init() {
     deps_check
     env_check
-}
 
-install() {
-    echo "Installing..."
-
-    # 检查必需的环境变量
-    if [ -z "$NZ_SERVER" ]; then
-        err "NZ_SERVER should not be empty"
-        exit 1
-    fi
-
-    if [ -z "$NZ_CLIENT_SECRET" ]; then
-        err "NZ_CLIENT_SECRET should not be empty"
-        exit 1
-    fi
-
-    # 构建下载 URL
+    # 设置协议
     if [ "$NZ_TLS" = "true" ]; then
         PROTOCOL="https"
     else
         PROTOCOL="http"
     fi
+}
 
+# 检测现有安装
+detect_existing_installation() {
+    if [ -f "$NZ_AGENT_PATH/nezha-agent" ]; then
+        return 0  # 存在安装
+    fi
+    if systemctl is-enabled --quiet nezha-agent 2>/dev/null; then
+        return 0  # 服务已注册
+    fi
+    return 1  # 不存在
+}
+
+# 下载 agent 二进制文件
+download_agent() {
     NZ_AGENT_URL="${PROTOCOL}://${NZ_SERVER}/nezha-agent"
 
-    # 下载 agent
     info "Downloading agent from $NZ_AGENT_URL (this may take a while...)"
 
     download_success=0
@@ -160,6 +159,140 @@ install() {
     # 移动并设置权限
     sudo mv /tmp/nezha-agent $NZ_AGENT_PATH/nezha-agent
     sudo chmod +x $NZ_AGENT_PATH/nezha-agent
+}
+
+# 配置审计功能
+configure_audit() {
+    local config_file="$1"
+
+    # 从 NZ_SERVER 提取 host 和 port
+    local host=$(echo "$NZ_SERVER" | cut -d':' -f1)
+    local port=$(echo "$NZ_SERVER" | cut -d':' -f2)
+
+    # 如果端口与 host 相同（没有指定端口），使用默认端口
+    if [ "$port" = "$host" ]; then
+        port="8008"
+    fi
+
+    # 构建 Dashboard URL
+    local dashboard_url="${PROTOCOL}://${host}:${port}"
+
+    # 追加审计配置到配置文件
+    cat >> "$config_file" << EOF
+
+# 终端审计配置（自动生成）
+audit_enabled: true
+audit_dashboard_url: "${dashboard_url}"
+audit_token: "${NZ_CLIENT_SECRET}"
+EOF
+
+    info "Terminal audit configured: $dashboard_url"
+}
+
+# 检查并补充审计配置
+ensure_audit_config() {
+    local config_file="$1"
+
+    if [ ! -f "$config_file" ]; then
+        return 1
+    fi
+
+    # 检查是否已有审计配置
+    if grep -q "audit_enabled" "$config_file" 2>/dev/null; then
+        info "Audit config already exists, skipping..."
+        return 0
+    fi
+
+    # 补充审计配置
+    info "Adding missing audit config..."
+    configure_audit "$config_file"
+    return 0
+}
+
+# 升级现有安装
+upgrade() {
+    info "Detected existing installation, upgrading..."
+
+    # 检查必需的环境变量
+    if [ -z "$NZ_SERVER" ]; then
+        err "NZ_SERVER should not be empty"
+        exit 1
+    fi
+
+    if [ -z "$NZ_CLIENT_SECRET" ]; then
+        err "NZ_CLIENT_SECRET should not be empty"
+        exit 1
+    fi
+
+    # 查找配置文件
+    local config_file="$NZ_CONFIG_PATH"
+    if [ ! -f "$config_file" ]; then
+        # 尝试查找其他配置文件
+        config_file=$(find "$NZ_AGENT_PATH" -type f -name "config*.yml" 2>/dev/null | head -1)
+    fi
+
+    # 备份现有配置
+    if [ -n "$config_file" ] && [ -f "$config_file" ]; then
+        info "Backing up config: $config_file"
+        sudo cp "$config_file" "${config_file}.bak.$(date +%Y%m%d_%H%M%S)"
+    fi
+
+    # 停止服务
+    info "Stopping service..."
+    sudo systemctl stop nezha-agent 2>/dev/null || true
+
+    # 备份旧二进制
+    if [ -f "$NZ_AGENT_PATH/nezha-agent" ]; then
+        sudo mv "$NZ_AGENT_PATH/nezha-agent" "$NZ_AGENT_PATH/nezha-agent.old"
+    fi
+
+    # 下载新二进制
+    download_agent
+
+    # 检查并补充审计配置
+    if [ -n "$config_file" ] && [ -f "$config_file" ]; then
+        ensure_audit_config "$config_file"
+    fi
+
+    # 重启服务
+    info "Starting service..."
+    sudo systemctl start nezha-agent
+
+    # 检查服务状态
+    sleep 2
+    if systemctl is-active --quiet nezha-agent; then
+        success "Agent upgraded successfully!"
+
+        # 清理旧二进制
+        sudo rm -f "$NZ_AGENT_PATH/nezha-agent.old"
+    else
+        err "Service failed to start, rolling back..."
+        sudo mv "$NZ_AGENT_PATH/nezha-agent.old" "$NZ_AGENT_PATH/nezha-agent"
+        sudo systemctl start nezha-agent
+        exit 1
+    fi
+
+    info "Service status: systemctl status nezha-agent"
+    info "View logs: journalctl -u nezha-agent -f"
+}
+
+# 全新安装
+install() {
+    echo "Installing..."
+
+    # 检查必需的环境变量
+    if [ -z "$NZ_SERVER" ]; then
+        err "NZ_SERVER should not be empty"
+        exit 1
+    fi
+
+    if [ -z "$NZ_CLIENT_SECRET" ]; then
+        err "NZ_CLIENT_SECRET should not be empty"
+        exit 1
+    fi
+
+    # 下载 agent
+    download_agent
 
     # 创建配置文件路径
     path="$NZ_AGENT_PATH/config.yml"
@@ -183,6 +316,17 @@ install() {
         exit 1
     fi
 
+    # 等待配置文件生成
+    sleep 2
+
+    # 配置审计功能
+    if [ -f "$path" ]; then
+        configure_audit "$path"
+        # 重启服务以应用新配置
+        info "Restarting service to apply audit config..."
+        sudo systemctl restart nezha-agent
+    fi
+
     success "nezha-agent successfully installed"
     info "Service status: systemctl status nezha-agent"
     info "View logs: journalctl -u nezha-agent -f"
@@ -197,10 +341,26 @@ uninstall() {
     info "Uninstallation completed."
 }
 
+# 主入口
 if [ "$1" = "uninstall" ]; then
     uninstall
     exit
 fi
 
 init
-install
+
+# 检测现有安装并决定操作
+if detect_existing_installation; then
+    # 检查是否强制重装
+    if [ "$NZ_FORCE_REINSTALL" = "true" ]; then
+        info "Force reinstall requested, removing existing installation..."
+        uninstall
+        install
+    else
+        # 默认升级
+        upgrade
+    fi
+else
+    # 全新安装
+    install
+fi
